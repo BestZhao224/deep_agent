@@ -1,0 +1,48 @@
+[project]
+name = "personalops-agent"
+version = "0.1.0"
+description = "DeepAgents PersonalOps platform with a Travel Planner sub-agent."
+requires-python = ">=3.11"
+dependencies = [
+    "deepagents>=0.4.12",
+    "fastapi>=0.115.0",
+    "httpx>=0.27.0",
+    "langchain>=1.0.0",
+    "langchain-mcp-adapters>=0.1.0",
+    "langchain-openai>=0.2.0",
+    "langgraph>=1.0.0",
+    "motor>=3.6.0",
+    "pydantic>=2.8.0",
+    "pymongo>=4.8.0",
+    "python-dotenv>=1.0.1",
+    "sse-starlette>=2.1.0",
+    "uvicorn[standard]>=0.30.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.8.0",
+]
+
+[build-system]
+requires = ["setuptools>=73.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
