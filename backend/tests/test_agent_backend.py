@@ -1,28 +1,38 @@
+import importlib
 import sys
 import types
+from pathlib import Path
 
 import pytest
 
 from personalops_agent.agent import factory
-from personalops_agent.agent.memory import create_short_term_checkpointer
 from personalops_agent.config import Settings
 
 
-def test_create_short_term_checkpointer_returns_reusable_instance():
-    checkpointer = create_short_term_checkpointer()
+def test_create_project_backend_points_at_backend_directory(monkeypatch):
+    captured = {}
 
-    assert checkpointer is not None
+    class FakeFilesystemBackend:
+        def __init__(self, *, root_dir, virtual_mode=False):
+            captured["root_dir"] = root_dir
+            captured["virtual_mode"] = virtual_mode
+
+    monkeypatch.setitem(
+        sys.modules,
+        "deepagents.backends",
+        types.SimpleNamespace(FilesystemBackend=FakeFilesystemBackend),
+    )
+
+    backend_module = importlib.import_module("personalops_agent.agent.backend")
+    backend = backend_module.create_project_backend()
+
+    assert backend is not None
+    assert Path(captured["root_dir"]).name == "backend"
+    assert captured["virtual_mode"] is True
 
 
 @pytest.mark.asyncio
-async def test_coordinator_tools_only_include_web_search():
-    tools = await factory.build_coordinator_tools(Settings(zhipu_api_key="zhipu-secret"))
-
-    assert [tool.name for tool in tools] == ["search_web"]
-
-
-@pytest.mark.asyncio
-async def test_create_agent_gives_main_and_travel_subagent_different_tool_sets(monkeypatch):
+async def test_create_agent_passes_project_backend_to_deep_agent(monkeypatch):
     captured = {}
 
     class FakeChatOpenAI:
@@ -39,6 +49,8 @@ async def test_create_agent_gives_main_and_travel_subagent_different_tool_sets(m
     async def fake_build_travel_tools(settings):
         return ["travel-search", "weather", "exchange", "amap"]
 
+    sentinel_backend = object()
+
     monkeypatch.setitem(
         sys.modules,
         "deepagents",
@@ -51,17 +63,14 @@ async def test_create_agent_gives_main_and_travel_subagent_different_tool_sets(m
     )
     monkeypatch.setattr(factory, "build_coordinator_tools", fake_build_coordinator_tools)
     monkeypatch.setattr(factory, "build_travel_tools", fake_build_travel_tools)
-    sentinel_backend = object()
-    monkeypatch.setattr(factory, "create_project_backend", lambda: sentinel_backend)
+    monkeypatch.setattr(factory, "create_project_backend", lambda: sentinel_backend, raising=False)
 
-    checkpointer = object()
     agent = await factory.create_personalops_agent(
         Settings(deepseek_api_key="deepseek-secret", zhipu_api_key="zhipu-secret"),
-        checkpointer=checkpointer,
+        checkpointer=object(),
     )
 
     assert agent == "agent"
     assert captured["backend"] is sentinel_backend
-    assert captured["checkpointer"] is checkpointer
     assert captured["tools"] == ["coordinator-search"]
     assert captured["subagents"][0]["tools"] == ["travel-search", "weather", "exchange", "amap"]

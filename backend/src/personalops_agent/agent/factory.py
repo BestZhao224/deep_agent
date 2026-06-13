@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from langchain_core.tools import tool
 
+from personalops_agent.agent.backend import create_project_backend
 from personalops_agent.agent.prompts import MAIN_SYSTEM_PROMPT, TRAVEL_SYSTEM_PROMPT
 from personalops_agent.config import Settings
 from personalops_agent.tools.amap_mcp import load_amap_mcp_tools
@@ -44,7 +45,7 @@ async def build_travel_tools(settings: Settings, mcp_loader=load_amap_mcp_tools)
     return [search_web, get_weather, convert_currency, *amap_tools]
 
 
-async def create_personalops_agent(settings: Settings, checkpointer=None):
+async def create_personalops_agent(settings: Settings, checkpointer=None, backend=None):
     """Create the real DeepAgents graph.
 
     The imports stay inside the factory so tests and config validation do not pretend
@@ -68,6 +69,7 @@ async def create_personalops_agent(settings: Settings, checkpointer=None):
     )
     coordinator_tools = await build_coordinator_tools(settings)
     travel_tools = await build_travel_tools(settings)
+    backend = backend or create_project_backend()
     subagents = [
         {
             "name": "travel-planner",
@@ -81,5 +83,6 @@ async def create_personalops_agent(settings: Settings, checkpointer=None):
         system_prompt=MAIN_SYSTEM_PROMPT,
         tools=coordinator_tools,
         subagents=subagents,
+        backend=backend,
         checkpointer=checkpointer,
     )
